@@ -446,21 +446,24 @@ app.post('/api/aviator/cashout', async function(req, res) {
     if (user.streak > (user.bestStreak || 0)) user.bestStreak = user.streak;
     await user.save();
 
-    // ===== THÔNG BÁO KHI CASHOUT Ở 5X+ =====
-    if (cashoutMultiplier >= BIG_WIN_THRESHOLD) {
-      try {
-        await sendZaloMessage(user.userId,
-          '🎉 CHÚC MỪNG ĂN LỚN!\n' +
-          '━━━━━━━━━━━━━━━━━━\n' +
-          '👤 ' + user.name + '\n' +
-          '🎯 Cashout ở: ' + cashoutMultiplier.toFixed(2) + 'x\n' +
-          '💰 Nhận: +' + winAmount.toLocaleString('vi-VN') + ' VNĐ\n' +
-          '🔥 Streak: ' + user.streak + ' ván\n' +
-          '━━━━━━━━━━━━━━━━━━\n' +
-          '🎮 Chơi tiếp: https://aviator-web-izxf.onrender.com\n' +
-          '━━━━━━━━━━━━━━━━━━\n' + DEV);
-      } catch (e) {}
+    // ===== THÔNG BÁO GROUP KHI CASHOUT Ở 5X+ =====
+if (cashoutMultiplier >= BIG_WIN_THRESHOLD) {
+  try {
+    const NOTIFY_GROUP_ID = process.env.NOTIFY_GROUP_ID || '';
+    if (NOTIFY_GROUP_ID) {
+      await sendZaloMessage(NOTIFY_GROUP_ID,
+        '🎉 CHÚC MỪNG ĂN LỚN!\n' +
+        '━━━━━━━━━━━━━━━━━━\n' +
+        '👤 ' + user.name + '\n' +
+        '🎯 Cashout ở: ' + cashoutMultiplier.toFixed(2) + 'x\n' +
+        '💰 Nhận: +' + winAmount.toLocaleString('vi-VN') + ' VNĐ\n' +
+        '🔥 Streak: ' + user.streak + ' ván\n' +
+        '━━━━━━━━━━━━━━━━━━\n' +
+        '🎮 Chơi tiếp: https://aviator-web-izxf.onrender.com\n' +
+        '━━━━━━━━━━━━━━━━━━\n' + DEV);
     }
+  } catch (e) {}
+}
 
     res.json({
       success: true,
