@@ -24,7 +24,7 @@ function getCrashPoint() {
   let crashPoint = 1 / (1 - random);
   crashPoint = Math.floor(crashPoint * 100) / 100;
   if (crashPoint < 1.00) crashPoint = 1.00;
-  if (crashPoint > 100) crashPoint = 100;
+  if (crashPoint > 6.00) crashPoint = 6.00;
   return crashPoint;
 }
 
