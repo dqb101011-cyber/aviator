@@ -1,6 +1,7 @@
 const express = require('express');
 const axios = require('axios');
 const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
 
 const app = express();
 app.use(express.json());
@@ -15,9 +16,9 @@ const START_BALANCE = 0;
 const MIN_BET = 1000;
 const MAX_BET = 50000;
 
-const otpCodes = {};
 const authTokens = {};
 const aviatorGames = {};
+const otpCodes = {};
 
 function getCrashPoint() {
   const random = Math.random() * 0.9;
@@ -35,6 +36,7 @@ mongoose.connect(MONGODB_URI)
 const userSchema = new mongoose.Schema({
   userId: { type: String, unique: true, required: true },
   name: String,
+  password: { type: String, default: null },
   balance: { type: Number, default: START_BALANCE },
   winCount: { type: Number, default: 0 },
   loseCount: { type: Number, default: 0 },
@@ -52,22 +54,126 @@ async function sendZaloMessage(chatId, text) {
   } catch (err) {}
 }
 
-// ===== API: GỬI OTP =====
-app.post('/api/send-otp', async function(req, res) {
+// ===== API: KIỂM TRA USER =====
+app.post('/api/check-user', async function(req, res) {
   try {
     const { userId } = req.body;
     if (!userId) return res.json({ success: false, message: 'Thiếu ID Zalo' });
 
     const user = await User.findOne({ userId: userId });
-    if (!user) return res.json({ success: false, message: 'ID Zalo không tồn tại. Chat với bot Zalo trước!' });
+    if (!user) {
+      return res.json({ success: false, message: 'ID Zalo không tồn tại. Chat với bot Zalo trước!' });
+    }
+
+    res.json({
+      success: true,
+      hasPassword: !!user.password,
+      name: user.name
+    });
+  } catch (err) {
+    res.json({ success: false, message: err.message });
+  }
+});
+
+// ===== API: TẠO MẬT KHẨU =====
+app.post('/api/create-password', async function(req, res) {
+  try {
+    const { userId, password, password2 } = req.body;
+
+    if (!userId || !password || !password2) {
+      return res.json({ success: false, message: 'Thiếu thông tin' });
+    }
+
+    if (password !== password2) {
+      return res.json({ success: false, message: 'Mật khẩu nhập lại không khớp!' });
+    }
+
+    // Kiểm tra mật khẩu: có chữ HOA + số
+    const hasUpper = /[A-Z]/.test(password);
+    const hasNumber = /[0-9]/.test(password);
+
+    if (!hasUpper || !hasNumber) {
+      return res.json({ success: false, message: 'Mật khẩu phải có ít nhất 1 chữ IN HOA và 1 chữ số!' });
+    }
+
+    if (password.length < 6) {
+      return res.json({ success: false, message: 'Mật khẩu phải có ít nhất 6 ký tự!' });
+    }
+
+    const user = await User.findOne({ userId: userId });
+    if (!user) return res.json({ success: false, message: 'User không tồn tại' });
+    if (user.password) return res.json({ success: false, message: 'Bạn đã có mật khẩu rồi!' });
+
+    // Hash mật khẩu
+    const hashedPassword = await bcrypt.hash(password, 10);
+    user.password = hashedPassword;
+    await user.save();
+
+    // Tạo token
+    const token = 'tk_' + Date.now() + '_' + Math.random().toString(36).substring(2, 15);
+    authTokens[token] = { userId: userId, expires: Date.now() + 24 * 60 * 60 * 1000 };
+
+    res.json({
+      success: true,
+      token: token,
+      user: {
+        userId: user.userId,
+        name: user.name,
+        balance: user.balance
+      }
+    });
+  } catch (err) {
+    res.json({ success: false, message: err.message });
+  }
+});
+
+// ===== API: ĐĂNG NHẬP =====
+app.post('/api/login', async function(req, res) {
+  try {
+    const { userId, password } = req.body;
+
+    if (!userId || !password) {
+      return res.json({ success: false, message: 'Thiếu thông tin' });
+    }
+
+    const user = await User.findOne({ userId: userId });
+    if (!user) return res.json({ success: false, message: 'ID Zalo không tồn tại' });
+    if (!user.password) return res.json({ success: false, message: 'Bạn chưa tạo mật khẩu. Vui lòng tạo mật khẩu!' });
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.json({ success: false, message: 'Sai mật khẩu!' });
+
+    const token = 'tk_' + Date.now() + '_' + Math.random().toString(36).substring(2, 15);
+    authTokens[token] = { userId: userId, expires: Date.now() + 24 * 60 * 60 * 1000 };
+
+    res.json({
+      success: true,
+      token: token,
+      user: {
+        userId: user.userId,
+        name: user.name,
+        balance: user.balance
+      }
+    });
+  } catch (err) {
+    res.json({ success: false, message: err.message });
+  }
+});
+
+// ===== API: QUÊN MẬT KHẨU (GỬI OTP) =====
+app.post('/api/forgot-password', async function(req, res) {
+  try {
+    const { userId } = req.body;
+    if (!userId) return res.json({ success: false, message: 'Thiếu ID Zalo' });
+
+    const user = await User.findOne({ userId: userId });
+    if (!user) return res.json({ success: false, message: 'ID Zalo không tồn tại' });
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const expires = Date.now() + 5 * 60 * 1000;
-
-    otpCodes[userId] = { code: otp, expires: expires };
+    otpCodes[userId] = { code: otp, expires: Date.now() + 5 * 60 * 1000 };
 
     await sendZaloMessage(userId,
-      '🔐 MÃ OTP ĐĂNG NHẬP WEB\n' +
+      '🔐 MÃ OTP ĐỔI MẬT KHẨU\n' +
       '━━━━━━━━━━━━━━━━━━\n' +
       'Mã OTP của bạn là:\n\n' +
       '🔑 ' + otp + '\n\n' +
@@ -82,37 +188,48 @@ app.post('/api/send-otp', async function(req, res) {
   }
 });
 
-// ===== API: XÁC NHẬN OTP =====
-app.post('/api/verify-otp', async function(req, res) {
+// ===== API: ĐỔI MẬT KHẨU =====
+app.post('/api/reset-password', async function(req, res) {
   try {
-    const { userId, otp } = req.body;
-    if (!userId || !otp) return res.json({ success: false, message: 'Thiếu thông tin' });
+    const { userId, otp, newPassword, newPassword2 } = req.body;
+
+    if (!userId || !otp || !newPassword || !newPassword2) {
+      return res.json({ success: false, message: 'Thiếu thông tin' });
+    }
+
+    if (newPassword !== newPassword2) {
+      return res.json({ success: false, message: 'Mật khẩu nhập lại không khớp!' });
+    }
+
+    const hasUpper = /[A-Z]/.test(newPassword);
+    const hasNumber = /[0-9]/.test(newPassword);
+
+    if (!hasUpper || !hasNumber) {
+      return res.json({ success: false, message: 'Mật khẩu phải có chữ IN HOA và chữ số!' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.json({ success: false, message: 'Mật khẩu phải có ít nhất 6 ký tự!' });
+    }
 
     const saved = otpCodes[userId];
-    if (!saved) return res.json({ success: false, message: 'Chưa gửi OTP hoặc hết hạn' });
+    if (!saved) return res.json({ success: false, message: 'Chưa gửi OTP' });
     if (Date.now() > saved.expires) {
       delete otpCodes[userId];
-      return res.json({ success: false, message: 'OTP hết hạn. Gửi lại!' });
+      return res.json({ success: false, message: 'OTP hết hạn' });
     }
     if (saved.code !== otp) return res.json({ success: false, message: 'OTP sai!' });
 
-    const token = 'tk_' + Date.now() + '_' + Math.random().toString(36).substring(2, 15);
-    const tokenExpires = Date.now() + 24 * 60 * 60 * 1000;
+    const user = await User.findOne({ userId: userId });
+    if (!user) return res.json({ success: false, message: 'User không tồn tại' });
 
-    authTokens[token] = { userId: userId, expires: tokenExpires };
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedPassword;
+    await user.save();
+
     delete otpCodes[userId];
 
-    const user = await User.findOne({ userId: userId });
-
-    res.json({
-      success: true,
-      token: token,
-      user: {
-        userId: user.userId,
-        name: user.name,
-        balance: user.balance
-      }
-    });
+    res.json({ success: true, message: 'Đổi mật khẩu thành công!' });
   } catch (err) {
     res.json({ success: false, message: err.message });
   }
@@ -149,7 +266,7 @@ app.get('/api/user-me', async function(req, res) {
   }
 });
 
-// ===== API: BẮT ĐẦU AVIATOR =====
+// ===== API: AVIATOR START =====
 app.post('/api/aviator/start', async function(req, res) {
   try {
     const token = req.headers['authorization'];
@@ -194,17 +311,15 @@ app.post('/api/aviator/start', async function(req, res) {
   }
 });
 
-// ===== API: CHECK GAME =====
+// ===== API: AVIATOR CHECK =====
 app.get('/api/aviator/check/:gameId', function(req, res) {
   const game = aviatorGames[req.params.gameId];
   if (!game) return res.json({ success: false, message: 'Game không tồn tại' });
 
-  // Nếu chưa vỡ → tăng hệ số
   if (!game.crashed) {
     game.multiplier += 0.01;
     game.multiplier = Math.round(game.multiplier * 100) / 100;
 
-    // Kiểm tra vỡ
     if (game.multiplier >= game.crashAt) {
       game.multiplier = game.crashAt;
       game.crashed = true;
@@ -222,7 +337,7 @@ app.get('/api/aviator/check/:gameId', function(req, res) {
   });
 });
 
-// ===== API: CASHOUT =====
+// ===== API: AVIATOR CASHOUT =====
 app.post('/api/aviator/cashout', async function(req, res) {
   try {
     const token = req.headers['authorization'];
@@ -238,12 +353,10 @@ app.post('/api/aviator/cashout', async function(req, res) {
     if (game.cashed) return res.json({ success: false, message: 'Bạn đã lấy tiền rồi!' });
     if (game.crashed) return res.json({ success: false, message: 'Máy bay đã vỡ!' });
 
-    // Đánh dấu đã cashout
     game.cashed = true;
     const cashoutMultiplier = game.multiplier;
     const winAmount = Math.floor(game.betAmount * cashoutMultiplier);
 
-    // Cộng tiền
     const user = await User.findOne({ userId: auth.userId });
     user.balance += winAmount;
     user.winCount++;
@@ -260,7 +373,7 @@ app.post('/api/aviator/cashout', async function(req, res) {
   }
 });
 
-// ===== API: HEALTH =====
+// ===== HEALTH =====
 app.get('/api/health', function(req, res) {
   res.json({ ok: true, dev: DEV });
 });
