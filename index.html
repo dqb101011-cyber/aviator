@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🛫 Aviator Game</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="login-screen" class="screen">
+  <h1>🛫 AVIATOR</h1>
+  <p class="subtitle">Game cá cược máy bay</p>
+
+  <div class="form-group">
+    <label>ID Zalo của bạn:</label>
+    <input type="text" id="userId" placeholder="VD: 630bbffafbad12f34bbc">
+    <small>💡 Gõ .id trong Zalo bot để lấy ID</small>
+  </div>
+
+  <button id="send-otp-btn" onclick="sendOTP()">📤 GỬI OTP QUA ZALO</button>
+
+  <div id="otp-section" style="display:none">
+    <div class="form-group">
+      <label>Nhập mã OTP:</label>
+      <input type="text" id="otpInput" placeholder="6 chữ số" maxlength="6">
+    </div>
+    <button onclick="verifyOTP()">✅ XÁC NHẬN</button>
+    <button class="btn-secondary" onclick="sendOTP()">🔄 GỬI LẠI</button>
+  </div>
+
+  <p id="error-msg" class="error"></p>
+</div>
+
+<div id="game-screen" class="screen" style="display:none">
+  <div class="header">
+    <div>
+      <span id="user-name">-</span>
+      <button class="btn-logout" onclick="logout()">Thoát</button>
+    </div>
+    <div id="user-balance">0 VNĐ</div>
+  </div>
+
+  <div id="game-area">
+    <canvas id="game-canvas"></canvas>
+    <div id="multiplier-display">1.00x</div>
+  </div>
+
+  <div class="controls">
+    <input type="number" id="bet-amount" placeholder="Số tiền" value="10000" step="1000">
+    <button id="start-btn" onclick="startGame()">🚀 BẮT ĐẦU</button>
+    <button id="cashout-btn" class="btn-cashout" onclick="cashout()" style="display:none">💰 LẤY TIỀN</button>
+  </div>
+
+  <div id="history-box">
+    <h3>📜 Lịch sử gần đây</h3>
+    <div id="history-list"></div>
+  </div>
+</div>
+
+<script src="game.js"></script>
+</body>
+</html>
