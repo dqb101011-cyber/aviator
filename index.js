@@ -20,7 +20,7 @@ const authTokens = {};
 const aviatorGames = {};
 
 function getCrashPoint() {
-  const random = Math.random();
+  const random = Math.random() * 0.9;
   let crashPoint = 1 / (1 - random);
   crashPoint = Math.floor(crashPoint * 100) / 100;
   if (crashPoint < 1.00) crashPoint = 1.00;
