@@ -12,21 +12,76 @@
   <h1>🛫 AVIATOR</h1>
   <p class="subtitle">Game cá cược máy bay</p>
 
-  <div class="form-group">
-    <label>ID Zalo của bạn:</label>
-    <input type="text" id="userId" placeholder="VD: 630bbffafbad12f34bbc">
-    <small>💡 Gõ .id trong Zalo bot để lấy ID</small>
+  <!-- BƯỚC 1: NHẬP ID -->
+  <div id="step1">
+    <div class="form-group">
+      <label>ID Zalo của bạn:</label>
+      <input type="text" id="userId" placeholder="VD: 630bbffafbad12f34bbc">
+      <small>💡 Gõ .id trong Zalo bot để lấy ID</small>
+    </div>
+    <button onclick="checkUser()">➡️ TIẾP TỤC</button>
   </div>
 
-  <button id="send-otp-btn" onclick="sendOTP()">📤 GỬI OTP QUA ZALO</button>
+  <!-- BƯỚC 2A: TẠO MẬT KHẨU (lần đầu) -->
+  <div id="step2-create" style="display:none">
+    <p style="text-align:center; color:#ff0066; margin-bottom:15px;">
+      🎉 Chào mừng <span id="welcome-name"></span>!<br>
+      Bạn là người mới, hãy tạo mật khẩu.
+    </p>
 
-  <div id="otp-section" style="display:none">
     <div class="form-group">
-      <label>Nhập mã OTP:</label>
-      <input type="text" id="otpInput" placeholder="6 chữ số" maxlength="6">
+      <label>Mật khẩu mới:</label>
+      <input type="password" id="newPassword" placeholder="Có chữ HOA + số">
+      <small>⚠️ Ít nhất 6 ký tự, có 1 chữ IN HOA và 1 chữ số</small>
     </div>
-    <button onclick="verifyOTP()">✅ XÁC NHẬN</button>
-    <button class="btn-secondary" onclick="sendOTP()">🔄 GỬI LẠI</button>
+
+    <div class="form-group">
+      <label>Nhập lại mật khẩu:</label>
+      <input type="password" id="newPassword2" placeholder="Nhập lại">
+    </div>
+
+    <button onclick="createPassword()">✅ TẠO MẬT KHẨU</button>
+  </div>
+
+  <!-- BƯỚC 2B: ĐĂNG NHẬP (đã có mật khẩu) -->
+  <div id="step2-login" style="display:none">
+    <div class="form-group">
+      <label>Mật khẩu:</label>
+      <input type="password" id="password" placeholder="Nhập mật khẩu">
+    </div>
+
+    <button onclick="login()">🔓 ĐĂNG NHẬP</button>
+    <button class="btn-secondary" onclick="showForgot()">❓ Quên mật khẩu?</button>
+  </div>
+
+  <!-- BƯỚC 3: QUÊN MẬT KHẨU -->
+  <div id="step3-forgot" style="display:none">
+    <p style="text-align:center; color:#ffcc00; margin-bottom:15px;">
+      🔐 Đổi mật khẩu mới
+    </p>
+
+    <button onclick="sendOTP()">📤 GỬI OTP QUA ZALO</button>
+
+    <div id="otp-section" style="display:none">
+      <div class="form-group">
+        <label>Mã OTP:</label>
+        <input type="text" id="otpInput" placeholder="6 chữ số" maxlength="6">
+      </div>
+
+      <div class="form-group">
+        <label>Mật khẩu mới:</label>
+        <input type="password" id="resetPassword" placeholder="Có chữ HOA + số">
+      </div>
+
+      <div class="form-group">
+        <label>Nhập lại mật khẩu mới:</label>
+        <input type="password" id="resetPassword2" placeholder="Nhập lại">
+      </div>
+
+      <button onclick="resetPassword()">✅ ĐỔI MẬT KHẨU</button>
+    </div>
+
+    <button class="btn-secondary" onclick="backToLogin()">⬅️ Quay lại</button>
   </div>
 
   <p id="error-msg" class="error"></p>
