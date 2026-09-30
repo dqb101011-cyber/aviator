@@ -7,11 +7,7 @@ body {
   padding: 15px;
 }
 
-.screen {
-  max-width: 500px;
-  margin: 0 auto;
-  padding: 20px;
-}
+.screen { max-width: 500px; margin: 0 auto; padding: 20px; }
 
 h1 {
   font-size: 42px;
@@ -21,15 +17,9 @@ h1 {
   text-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
 }
 
-.subtitle {
-  text-align: center;
-  color: #888;
-  margin-bottom: 30px;
-}
+.subtitle { text-align: center; color: #888; margin-bottom: 30px; }
 
-.form-group {
-  margin-bottom: 20px;
-}
+.form-group { margin-bottom: 20px; }
 
 .form-group label {
   display: block;
@@ -66,21 +56,12 @@ button {
   background: #27AE60;
   color: white;
   margin-bottom: 10px;
-  transition: all 0.2s;
 }
 
-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(39, 174, 96, 0.4);
-}
+button:hover { transform: translateY(-2px); }
 
-.btn-secondary {
-  background: #34495E;
-}
-
-.btn-cashout {
-  background: #E74C3C !important;
-}
+.btn-secondary { background: #34495E; }
+.btn-cashout { background: #E74C3C !important; }
 
 .btn-logout {
   width: auto;
@@ -90,11 +71,7 @@ button:hover {
   margin: 0;
 }
 
-.error {
-  color: #E74C3C;
-  text-align: center;
-  margin-top: 15px;
-}
+.error { color: #E74C3C; text-align: center; margin-top: 15px; }
 
 .header {
   display: flex;
@@ -106,11 +83,7 @@ button:hover {
   margin-bottom: 15px;
 }
 
-#user-balance {
-  color: #FFD700;
-  font-weight: bold;
-  font-size: 18px;
-}
+#user-balance { color: #FFD700; font-weight: bold; font-size: 18px; }
 
 #game-area {
   position: relative;
@@ -122,10 +95,7 @@ button:hover {
   border: 2px solid #FFD700;
 }
 
-#game-canvas {
-  width: 100%;
-  height: 100%;
-}
+#game-canvas { width: 100%; height: 100%; }
 
 #multiplier-display {
   position: absolute;
@@ -139,12 +109,18 @@ button:hover {
   pointer-events: none;
 }
 
-.controls {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-bottom: 15px;
+#status-display {
+  position: absolute;
+  bottom: 15px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 20px;
+  font-weight: bold;
+  text-align: center;
+  pointer-events: none;
 }
+
+.controls { display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px; }
 
 .controls input {
   padding: 15px;
@@ -164,10 +140,7 @@ button:hover {
   overflow-y: auto;
 }
 
-#history-box h3 {
-  margin-bottom: 10px;
-  color: #FFD700;
-}
+#history-box h3 { margin-bottom: 10px; color: #FFD700; }
 
 .history-item {
   padding: 8px;
@@ -175,10 +148,5 @@ button:hover {
   font-size: 14px;
 }
 
-.history-item.win {
-  color: #27AE60;
-}
-
-.history-item.lose {
-  color: #E74C3C;
-}
+.history-item.win { color: #27AE60; }
+.history-item.lose { color: #E74C3C; }
