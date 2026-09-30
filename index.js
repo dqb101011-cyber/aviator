@@ -19,11 +19,19 @@ const otpCodes = {};
 const authTokens = {};
 const aviatorGames = {};
 
+function getCrashPoint() {
+  const random = Math.random();
+  let crashPoint = 1 / (1 - random);
+  crashPoint = Math.floor(crashPoint * 100) / 100;
+  if (crashPoint < 1.00) crashPoint = 1.00;
+  if (crashPoint > 100) crashPoint = 100;
+  return crashPoint;
+}
+
 mongoose.connect(MONGODB_URI)
   .then(function() { console.log('✅ Đã kết nối MongoDB'); })
   .catch(function(err) { console.error('❌ Lỗi MongoDB:', err.message); });
 
-// ===== SCHEMA USER (GIỐNG BOT ZALO) =====
 const userSchema = new mongoose.Schema({
   userId: { type: String, unique: true, required: true },
   name: String,
@@ -35,40 +43,29 @@ const userSchema = new mongoose.Schema({
 });
 const User = mongoose.model('User', userSchema);
 
-// ===== GỬI TIN NHẮN QUA ZALO =====
 async function sendZaloMessage(chatId, text) {
   try {
     await axios.post(`${BASE_URL}/sendMessage`, {
       chat_id: chatId,
       text: text
     });
-    console.log('Đã gửi Zalo tới ' + chatId);
-  } catch (err) {
-    console.error('Lỗi gửi Zalo:', err.response ? err.response.data : err.message);
-  }
+  } catch (err) {}
 }
 
-// ===== API: GỬI OTP QUA ZALO =====
+// ===== API: GỬI OTP =====
 app.post('/api/send-otp', async function(req, res) {
   try {
     const { userId } = req.body;
-
-    if (!userId) {
-      return res.json({ success: false, message: 'Thiếu ID Zalo' });
-    }
+    if (!userId) return res.json({ success: false, message: 'Thiếu ID Zalo' });
 
     const user = await User.findOne({ userId: userId });
-    if (!user) {
-      return res.json({ success: false, message: 'ID Zalo không tồn tại. Chat với bot Zalo trước!' });
-    }
+    if (!user) return res.json({ success: false, message: 'ID Zalo không tồn tại. Chat với bot Zalo trước!' });
 
-    // Tạo OTP 6 số
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expires = Date.now() + 5 * 60 * 1000;
 
     otpCodes[userId] = { code: otp, expires: expires };
 
-    // Gửi OTP qua Zalo
     await sendZaloMessage(userId,
       '🔐 MÃ OTP ĐĂNG NHẬP WEB\n' +
       '━━━━━━━━━━━━━━━━━━\n' +
@@ -89,22 +86,15 @@ app.post('/api/send-otp', async function(req, res) {
 app.post('/api/verify-otp', async function(req, res) {
   try {
     const { userId, otp } = req.body;
-
-    if (!userId || !otp) {
-      return res.json({ success: false, message: 'Thiếu thông tin' });
-    }
+    if (!userId || !otp) return res.json({ success: false, message: 'Thiếu thông tin' });
 
     const saved = otpCodes[userId];
-    if (!saved) {
-      return res.json({ success: false, message: 'Chưa gửi OTP hoặc hết hạn' });
-    }
+    if (!saved) return res.json({ success: false, message: 'Chưa gửi OTP hoặc hết hạn' });
     if (Date.now() > saved.expires) {
       delete otpCodes[userId];
       return res.json({ success: false, message: 'OTP hết hạn. Gửi lại!' });
     }
-    if (saved.code !== otp) {
-      return res.json({ success: false, message: 'OTP sai!' });
-    }
+    if (saved.code !== otp) return res.json({ success: false, message: 'OTP sai!' });
 
     const token = 'tk_' + Date.now() + '_' + Math.random().toString(36).substring(2, 15);
     const tokenExpires = Date.now() + 24 * 60 * 60 * 1000;
@@ -177,20 +167,20 @@ app.post('/api/aviator/start', async function(req, res) {
     if (amount > MAX_BET) return res.json({ success: false, message: 'Cược tối đa ' + MAX_BET });
     if (user.balance < amount) return res.json({ success: false, message: 'Không đủ tiền' });
 
-    // Trừ tiền cược
     user.balance -= amount;
     user.totalBet += amount;
     await user.save();
 
-    // Tạo game
     const gameId = 'av_' + Date.now() + '_' + auth.userId;
     aviatorGames[gameId] = {
       userId: auth.userId,
       betAmount: amount,
       multiplier: 1.00,
       status: 'flying',
-      startTime: Date.now(),
-      crashAt: 1 + Math.random() * 10  // Random crash point 1x → 11x
+      crashed: false,
+      cashed: false,
+      crashAt: getCrashPoint(),
+      startTime: Date.now()
     };
 
     res.json({
@@ -204,30 +194,31 @@ app.post('/api/aviator/start', async function(req, res) {
   }
 });
 
-// ===== API: CHECK GAME (POLLING) =====
+// ===== API: CHECK GAME =====
 app.get('/api/aviator/check/:gameId', function(req, res) {
   const game = aviatorGames[req.params.gameId];
   if (!game) return res.json({ success: false, message: 'Game không tồn tại' });
 
-  // Kiểm tra vỡ
-  if (game.multiplier >= game.crashAt && game.status === 'flying') {
-    game.status = 'crashed';
-    return res.json({
-      success: true,
-      status: 'crashed',
-      multiplier: game.multiplier
-    });
-  }
+  // Nếu chưa vỡ → tăng hệ số
+  if (!game.crashed) {
+    game.multiplier += 0.01;
+    game.multiplier = Math.round(game.multiplier * 100) / 100;
 
-  // Tăng hệ số
-  if (game.status === 'flying') {
-    game.multiplier += 0.05;  // Tăng 0.05x mỗi lần check
+    // Kiểm tra vỡ
+    if (game.multiplier >= game.crashAt) {
+      game.multiplier = game.crashAt;
+      game.crashed = true;
+      game.status = 'crashed';
+    }
   }
 
   res.json({
     success: true,
     status: game.status,
-    multiplier: game.multiplier
+    multiplier: game.multiplier,
+    crashed: game.crashed,
+    cashed: game.cashed,
+    crashAt: game.crashed ? game.crashAt : null
   });
 });
 
@@ -244,11 +235,15 @@ app.post('/api/aviator/cashout', async function(req, res) {
     const game = aviatorGames[gameId];
     if (!game) return res.json({ success: false, message: 'Game không tồn tại' });
     if (game.userId !== auth.userId) return res.json({ success: false, message: 'Không phải game của bạn' });
-    if (game.status !== 'flying') return res.json({ success: false, message: 'Game đã kết thúc' });
+    if (game.cashed) return res.json({ success: false, message: 'Bạn đã lấy tiền rồi!' });
+    if (game.crashed) return res.json({ success: false, message: 'Máy bay đã vỡ!' });
 
-    game.status = 'cashed';
+    // Đánh dấu đã cashout
+    game.cashed = true;
+    const cashoutMultiplier = game.multiplier;
+    const winAmount = Math.floor(game.betAmount * cashoutMultiplier);
 
-    const winAmount = Math.floor(game.betAmount * game.multiplier);
+    // Cộng tiền
     const user = await User.findOne({ userId: auth.userId });
     user.balance += winAmount;
     user.winCount++;
@@ -256,7 +251,7 @@ app.post('/api/aviator/cashout', async function(req, res) {
 
     res.json({
       success: true,
-      multiplier: game.multiplier,
+      cashoutMultiplier: cashoutMultiplier,
       winAmount: winAmount,
       balance: user.balance
     });
@@ -265,12 +260,11 @@ app.post('/api/aviator/cashout', async function(req, res) {
   }
 });
 
-// ===== HEALTH CHECK =====
+// ===== API: HEALTH =====
 app.get('/api/health', function(req, res) {
   res.json({ ok: true, dev: DEV });
 });
 
-// ===== KHỞI ĐỘNG =====
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, function() {
   console.log('🛫 Aviator Web chạy cổng ' + PORT);
