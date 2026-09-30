@@ -8,30 +8,38 @@ let plane = { x: 50, y: 250, trail: [] };
 let particles = [];
 let animationFrame = null;
 
-// ===== ẢNH MÁY BAY =====
 const planeImg = new Image();
 planeImg.crossOrigin = 'anonymous';
 planeImg.src = 'https://i.ibb.co/jZ8Ch8TD/Picsart-26-10-01-04-36-48-089.png';
 
-// ===== GỬI OTP =====
-async function sendOTP() {
+// ===== BƯỚC 1: KIỂM TRA USER =====
+async function checkUser() {
   const userId = document.getElementById('userId').value.trim();
   if (!userId) {
     document.getElementById('error-msg').textContent = '❌ Nhập ID Zalo!';
     return;
   }
-  document.getElementById('error-msg').textContent = '⏳ Đang gửi OTP...';
+
+  document.getElementById('error-msg').textContent = '⏳ Đang kiểm tra...';
+
   try {
-    const res = await fetch('/api/send-otp', {
+    const res = await fetch('/api/check-user', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId: userId })
     });
     const data = await res.json();
+
     if (data.success) {
-      document.getElementById('error-msg').textContent = '✅ Đã gửi OTP! Kiểm tra Zalo.';
-      document.getElementById('otp-section').style.display = 'block';
-      document.getElementById('otpInput').focus();
+      document.getElementById('error-msg').textContent = '';
+      document.getElementById('step1').style.display = 'none';
+
+      if (data.hasPassword) {
+        document.getElementById('step2-login').style.display = 'block';
+      } else {
+        document.getElementById('step2-create').style.display = 'block';
+        document.getElementById('welcome-name').textContent = data.name;
+      }
     } else {
       document.getElementById('error-msg').textContent = '❌ ' + data.message;
     }
@@ -40,22 +48,27 @@ async function sendOTP() {
   }
 }
 
-// ===== XÁC NHẬN OTP =====
-async function verifyOTP() {
+// ===== TẠO MẬT KHẨU =====
+async function createPassword() {
   const userId = document.getElementById('userId').value.trim();
-  const otp = document.getElementById('otpInput').value.trim();
-  if (!otp || otp.length !== 6) {
-    document.getElementById('error-msg').textContent = '❌ Nhập đủ 6 số!';
+  const password = document.getElementById('newPassword').value;
+  const password2 = document.getElementById('newPassword2').value;
+
+  if (!password || !password2) {
+    document.getElementById('error-msg').textContent = '❌ Nhập đủ mật khẩu!';
     return;
   }
-  document.getElementById('error-msg').textContent = '⏳ Đang xác nhận...';
+
+  document.getElementById('error-msg').textContent = '⏳ Đang tạo...';
+
   try {
-    const res = await fetch('/api/verify-otp', {
+    const res = await fetch('/api/create-password', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: userId, otp: otp })
+      body: JSON.stringify({ userId, password, password2 })
     });
     const data = await res.json();
+
     if (data.success) {
       currentToken = data.token;
       currentUser = data.user;
@@ -69,6 +82,109 @@ async function verifyOTP() {
   }
 }
 
+// ===== ĐĂNG NHẬP =====
+async function login() {
+  const userId = document.getElementById('userId').value.trim();
+  const password = document.getElementById('password').value;
+
+  if (!password) {
+    document.getElementById('error-msg').textContent = '❌ Nhập mật khẩu!';
+    return;
+  }
+
+  document.getElementById('error-msg').textContent = '⏳ Đang đăng nhập...';
+
+  try {
+    const res = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, password })
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      currentToken = data.token;
+      currentUser = data.user;
+      localStorage.setItem('aviator_token', currentToken);
+      showGameScreen();
+    } else {
+      document.getElementById('error-msg').textContent = '❌ ' + data.message;
+    }
+  } catch (err) {
+    document.getElementById('error-msg').textContent = '❌ Lỗi kết nối!';
+  }
+}
+
+// ===== QUÊN MẬT KHẨU =====
+function showForgot() {
+  document.getElementById('step2-login').style.display = 'none';
+  document.getElementById('step3-forgot').style.display = 'block';
+}
+
+function backToLogin() {
+  document.getElementById('step3-forgot').style.display = 'none';
+  document.getElementById('step2-login').style.display = 'block';
+}
+
+async function sendOTP() {
+  const userId = document.getElementById('userId').value.trim();
+  document.getElementById('error-msg').textContent = '⏳ Đang gửi OTP...';
+
+  try {
+    const res = await fetch('/api/forgot-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId })
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      document.getElementById('error-msg').textContent = '✅ Đã gửi OTP! Kiểm tra Zalo.';
+      document.getElementById('otp-section').style.display = 'block';
+    } else {
+      document.getElementById('error-msg').textContent = '❌ ' + data.message;
+    }
+  } catch (err) {
+    document.getElementById('error-msg').textContent = '❌ Lỗi kết nối!';
+  }
+}
+
+async function resetPassword() {
+  const userId = document.getElementById('userId').value.trim();
+  const otp = document.getElementById('otpInput').value.trim();
+  const newPassword = document.getElementById('resetPassword').value;
+  const newPassword2 = document.getElementById('resetPassword2').value;
+
+  if (!otp || !newPassword || !newPassword2) {
+    document.getElementById('error-msg').textContent = '❌ Nhập đủ thông tin!';
+    return;
+  }
+
+  document.getElementById('error-msg').textContent = '⏳ Đang đổi...';
+
+  try {
+    const res = await fetch('/api/reset-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, otp, newPassword, newPassword2 })
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      document.getElementById('error-msg').textContent = '✅ Đổi mật khẩu thành công!';
+      setTimeout(function() {
+        backToLogin();
+        document.getElementById('error-msg').textContent = '';
+      }, 1500);
+    } else {
+      document.getElementById('error-msg').textContent = '❌ ' + data.message;
+    }
+  } catch (err) {
+    document.getElementById('error-msg').textContent = '❌ Lỗi kết nối!';
+  }
+}
+
+// ===== HIỂN THỊ GAME =====
 function showGameScreen() {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('game-screen').style.display = 'block';
@@ -126,7 +242,6 @@ async function startGame() {
   }
 }
 
-// ===== MÁY BAY BAY =====
 function startFlying() {
   checkInterval = setInterval(async function() {
     try {
@@ -137,7 +252,6 @@ function startFlying() {
         const display = document.getElementById('multiplier-display');
         display.textContent = currentMultiplier.toFixed(2) + 'x';
 
-        // Đổi màu theo hệ số (giống Spribe)
         if (currentMultiplier < 2) display.style.color = '#ffffff';
         else if (currentMultiplier < 5) display.style.color = '#ffcc00';
         else if (currentMultiplier < 10) display.style.color = '#ff6600';
@@ -149,11 +263,8 @@ function startFlying() {
   }, 100);
 }
 
-// ===== CRASH =====
 function crash() {
   clearInterval(checkInterval);
-
-  // Hiệu ứng nổ
   createExplosion(plane.x, plane.y);
 
   document.getElementById('multiplier-display').textContent = '💥 ' + currentMultiplier.toFixed(2) + 'x';
@@ -181,7 +292,6 @@ function crash() {
   }, 3000);
 }
 
-// ===== CASHOUT =====
 async function cashout() {
   if (!currentGameId) return;
 
@@ -195,8 +305,6 @@ async function cashout() {
     if (data.success) {
       cashoutMultiplier = data.cashoutMultiplier;
       updateBalance(data.balance);
-
-      // Hiệu ứng pháo hoa
       createFireworks(plane.x, plane.y);
 
       document.getElementById('status-display').innerHTML =
@@ -214,7 +322,6 @@ async function cashout() {
   }
 }
 
-// ===== RESET UI =====
 function resetGameUI() {
   document.getElementById('start-btn').style.display = 'block';
   document.getElementById('cashout-btn').style.display = 'none';
@@ -236,7 +343,6 @@ function resizeCanvas() {
   canvas.height = canvas.offsetHeight;
 }
 
-// ===== VÒNG LẶP ANIMATION =====
 function startAnimationLoop() {
   function loop() {
     drawGame();
@@ -251,7 +357,6 @@ function drawGame() {
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
 
-  // Nền (giống Spribe)
   const gradient = ctx.createRadialGradient(
     canvas.width / 2, canvas.height / 2, 0,
     canvas.width / 2, canvas.height / 2, canvas.width
@@ -261,22 +366,17 @@ function drawGame() {
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Sao
   for (let i = 0; i < 80; i++) {
     const x = (i * 137) % canvas.width;
     const y = (i * 251) % canvas.height;
-    const size = (i % 3) + 1;
     ctx.fillStyle = 'rgba(255, 255, 255, ' + (0.2 + (i % 5) * 0.1) + ')';
-    ctx.fillRect(x, y, size, size);
+    ctx.fillRect(x, y, 2, 2);
   }
 
-  // Vẽ máy bay nếu đang bay
   if (currentGameId && !document.getElementById('cashout-btn').disabled) {
-    // Trail (vệt bay)
     plane.trail.push({ x: plane.x, y: plane.y, alpha: 1.0 });
     if (plane.trail.length > 40) plane.trail.shift();
 
-    // Vẽ trail (gradient)
     for (let i = 0; i < plane.trail.length; i++) {
       const t = plane.trail[i];
       const alpha = i / plane.trail.length;
@@ -286,7 +386,6 @@ function drawGame() {
       ctx.fill();
     }
 
-    // Vẽ đường bay
     ctx.strokeStyle = 'rgba(255, 0, 102, 0.6)';
     ctx.lineWidth = 3;
     ctx.beginPath();
@@ -294,24 +393,18 @@ function drawGame() {
     ctx.quadraticCurveTo(plane.x / 2, plane.y, plane.x, plane.y);
     ctx.stroke();
 
-    // Vẽ máy bay (ảnh)
     if (planeImg.complete && planeImg.naturalWidth > 0) {
       ctx.save();
       ctx.translate(plane.x, plane.y);
-      
-      // Rung nhẹ
       const shake = Math.sin(Date.now() / 50) * 2;
       ctx.translate(shake, 0);
-      
       ctx.drawImage(planeImg, -30, -30, 60, 60);
       ctx.restore();
     } else {
-      // Fallback emoji
       ctx.font = '40px Arial';
       ctx.fillText('✈️', plane.x - 20, plane.y);
     }
 
-    // Di chuyển máy bay
     plane.x += 1.5;
     plane.y -= 0.8;
 
@@ -323,12 +416,10 @@ function drawGame() {
   }
 }
 
-// ===== HIỆU ỨNG PHÁO HOA =====
 function createFireworks(x, y) {
   for (let i = 0; i < 50; i++) {
     particles.push({
-      x: x,
-      y: y,
+      x, y,
       vx: (Math.random() - 0.5) * 10,
       vy: (Math.random() - 0.5) * 10,
       life: 1.0,
@@ -337,12 +428,10 @@ function createFireworks(x, y) {
   }
 }
 
-// ===== HIỆU ỨNG NỔ =====
 function createExplosion(x, y) {
   for (let i = 0; i < 80; i++) {
     particles.push({
-      x: x,
-      y: y,
+      x, y,
       vx: (Math.random() - 0.5) * 15,
       vy: (Math.random() - 0.5) * 15,
       life: 1.0,
@@ -351,7 +440,6 @@ function createExplosion(x, y) {
   }
 }
 
-// ===== UPDATE PARTICLES =====
 function updateParticles() {
   const canvas = document.getElementById('game-canvas');
   if (!canvas) return;
@@ -364,10 +452,7 @@ function updateParticles() {
     p.vy += 0.2;
     p.life -= 0.02;
 
-    if (p.life <= 0) {
-      particles.splice(i, 1);
-      continue;
-    }
+    if (p.life <= 0) { particles.splice(i, 1); continue; }
 
     ctx.globalAlpha = p.life;
     ctx.fillStyle = p.color;
@@ -378,7 +463,6 @@ function updateParticles() {
   }
 }
 
-// ===== LỊCH SỬ =====
 function addHistory(type, text) {
   const box = document.getElementById('history-list');
   const item = document.createElement('div');
@@ -403,6 +487,10 @@ function logout() {
   if (animationFrame) cancelAnimationFrame(animationFrame);
   document.getElementById('login-screen').style.display = 'block';
   document.getElementById('game-screen').style.display = 'none';
+  document.getElementById('step1').style.display = 'block';
+  document.getElementById('step2-login').style.display = 'none';
+  document.getElementById('step2-create').style.display = 'none';
+  document.getElementById('step3-forgot').style.display = 'none';
 }
 
 window.addEventListener('load', async function() {
