@@ -1,7 +1,7 @@
-* { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, Arial, sans-serif; }
+* { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Arial, sans-serif; }
 
 body {
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  background: #0a0a0f;
   color: white;
   min-height: 100vh;
   padding: 15px;
@@ -10,21 +10,22 @@ body {
 .screen { max-width: 500px; margin: 0 auto; padding: 20px; }
 
 h1 {
-  font-size: 42px;
-  color: #FFD700;
+  font-size: 48px;
+  color: #ff0066;
   text-align: center;
   margin-bottom: 10px;
-  text-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+  text-shadow: 0 0 30px rgba(255, 0, 102, 0.8);
+  font-weight: 900;
 }
 
-.subtitle { text-align: center; color: #888; margin-bottom: 30px; }
+.subtitle { text-align: center; color: #666; margin-bottom: 30px; }
 
 .form-group { margin-bottom: 20px; }
 
 .form-group label {
   display: block;
   margin-bottom: 8px;
-  color: #FFD700;
+  color: #ff0066;
   font-weight: bold;
 }
 
@@ -32,16 +33,16 @@ h1 {
   width: 100%;
   padding: 15px;
   font-size: 16px;
-  border: 2px solid #FFD700;
+  border: 2px solid #ff0066;
   border-radius: 8px;
-  background: #0f0f1e;
+  background: #1a1a2e;
   color: white;
 }
 
 .form-group small {
   display: block;
   margin-top: 5px;
-  color: #888;
+  color: #666;
   font-size: 12px;
 }
 
@@ -53,15 +54,24 @@ button {
   border: none;
   border-radius: 8px;
   cursor: pointer;
-  background: #27AE60;
+  background: linear-gradient(135deg, #00cc00, #009900);
   color: white;
   margin-bottom: 10px;
+  transition: all 0.2s;
 }
 
-button:hover { transform: translateY(-2px); }
+button:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(0, 204, 0, 0.5); }
 
 .btn-secondary { background: #34495E; }
-.btn-cashout { background: #E74C3C !important; }
+.btn-cashout {
+  background: linear-gradient(135deg, #ff3300, #cc0000) !important;
+  animation: pulse 0.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.03); }
+}
 
 .btn-logout {
   width: auto;
@@ -71,42 +81,45 @@ button:hover { transform: translateY(-2px); }
   margin: 0;
 }
 
-.error { color: #E74C3C; text-align: center; margin-top: 15px; }
+.error { color: #ff0000; text-align: center; margin-top: 15px; }
 
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 15px;
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(255, 0, 102, 0.1);
   border-radius: 10px;
   margin-bottom: 15px;
+  border: 1px solid rgba(255, 0, 102, 0.3);
 }
 
-#user-balance { color: #FFD700; font-weight: bold; font-size: 18px; }
+#user-balance { color: #ffcc00; font-weight: bold; font-size: 18px; }
 
 #game-area {
   position: relative;
   height: 300px;
-  background: linear-gradient(180deg, #0f0f1e 0%, #1a1a2e 100%);
+  background: radial-gradient(circle at center, #1a1a2e, #0a0a0f);
   border-radius: 15px;
   overflow: hidden;
   margin-bottom: 15px;
-  border: 2px solid #FFD700;
+  border: 2px solid rgba(255, 0, 102, 0.5);
+  box-shadow: 0 0 30px rgba(255, 0, 102, 0.2);
 }
 
 #game-canvas { width: 100%; height: 100%; }
 
 #multiplier-display {
   position: absolute;
-  top: 50%;
+  top: 40%;
   left: 50%;
   transform: translate(-50%, -50%);
-  font-size: 64px;
-  font-weight: bold;
-  color: #FFD700;
-  text-shadow: 0 0 30px rgba(255, 215, 0, 0.8);
+  font-size: 72px;
+  font-weight: 900;
+  color: #ffffff;
+  text-shadow: 0 0 40px rgba(255, 0, 102, 0.8);
   pointer-events: none;
+  font-family: 'Arial Black', Arial, sans-serif;
 }
 
 #status-display {
@@ -114,33 +127,41 @@ button:hover { transform: translateY(-2px); }
   bottom: 15px;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 20px;
+  font-size: 14px;
   font-weight: bold;
   text-align: center;
   pointer-events: none;
+  background: rgba(0, 0, 0, 0.8);
+  padding: 10px 20px;
+  border-radius: 10px;
+  width: 90%;
+  max-width: 400px;
+  line-height: 1.5;
 }
 
 .controls { display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px; }
 
 .controls input {
   padding: 15px;
-  font-size: 16px;
-  border: 2px solid #FFD700;
+  font-size: 18px;
+  border: 2px solid #ff0066;
   border-radius: 8px;
-  background: #0f0f1e;
+  background: #1a1a2e;
   color: white;
   text-align: center;
+  font-weight: bold;
 }
 
 #history-box {
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.5);
   padding: 15px;
   border-radius: 10px;
   max-height: 200px;
   overflow-y: auto;
+  border: 1px solid rgba(255, 0, 102, 0.3);
 }
 
-#history-box h3 { margin-bottom: 10px; color: #FFD700; }
+#history-box h3 { margin-bottom: 10px; color: #ff0066; }
 
 .history-item {
   padding: 8px;
@@ -148,5 +169,5 @@ button:hover { transform: translateY(-2px); }
   font-size: 14px;
 }
 
-.history-item.win { color: #27AE60; }
-.history-item.lose { color: #E74C3C; }
+.history-item.win { color: #00ff00; }
+.history-item.lose { color: #ff0000; }
