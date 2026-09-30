@@ -4,22 +4,21 @@ let currentGameId = null;
 let currentMultiplier = 1.00;
 let cashoutMultiplier = null;
 let checkInterval = null;
-let plane = { x: 50, y: 250, trail: [] };
+let crashHistoryInterval = null;
+let chatInterval = null;
+let plane = { x: 50, y: 250, trail: [], angle: 0 };
 let particles = [];
 let animationFrame = null;
+let lastChatTime = 0;
 
 const planeImg = new Image();
 planeImg.crossOrigin = 'anonymous';
 planeImg.src = 'https://i.ibb.co/jZ8Ch8TD/Picsart-26-10-01-04-36-48-089.png';
 
-// ===== BƯỚC 1: KIỂM TRA USER =====
+// ===== CHECK USER =====
 async function checkUser() {
   const userId = document.getElementById('userId').value.trim();
-  if (!userId) {
-    document.getElementById('error-msg').textContent = '❌ Nhập ID Zalo!';
-    return;
-  }
-
+  if (!userId) { document.getElementById('error-msg').textContent = '❌ Nhập ID Zalo!'; return; }
   document.getElementById('error-msg').textContent = '⏳ Đang kiểm tra...';
 
   try {
@@ -33,7 +32,6 @@ async function checkUser() {
     if (data.success) {
       document.getElementById('error-msg').textContent = '';
       document.getElementById('step1').style.display = 'none';
-
       if (data.hasPassword) {
         document.getElementById('step2-login').style.display = 'block';
       } else {
@@ -53,11 +51,7 @@ async function createPassword() {
   const userId = document.getElementById('userId').value.trim();
   const password = document.getElementById('newPassword').value;
   const password2 = document.getElementById('newPassword2').value;
-
-  if (!password || !password2) {
-    document.getElementById('error-msg').textContent = '❌ Nhập đủ mật khẩu!';
-    return;
-  }
+  if (!password || !password2) { document.getElementById('error-msg').textContent = '❌ Nhập đủ mật khẩu!'; return; }
 
   document.getElementById('error-msg').textContent = '⏳ Đang tạo...';
 
@@ -68,7 +62,6 @@ async function createPassword() {
       body: JSON.stringify({ userId, password, password2 })
     });
     const data = await res.json();
-
     if (data.success) {
       currentToken = data.token;
       currentUser = data.user;
@@ -86,11 +79,7 @@ async function createPassword() {
 async function login() {
   const userId = document.getElementById('userId').value.trim();
   const password = document.getElementById('password').value;
-
-  if (!password) {
-    document.getElementById('error-msg').textContent = '❌ Nhập mật khẩu!';
-    return;
-  }
+  if (!password) { document.getElementById('error-msg').textContent = '❌ Nhập mật khẩu!'; return; }
 
   document.getElementById('error-msg').textContent = '⏳ Đang đăng nhập...';
 
@@ -101,7 +90,6 @@ async function login() {
       body: JSON.stringify({ userId, password })
     });
     const data = await res.json();
-
     if (data.success) {
       currentToken = data.token;
       currentUser = data.user;
@@ -120,7 +108,6 @@ function showForgot() {
   document.getElementById('step2-login').style.display = 'none';
   document.getElementById('step3-forgot').style.display = 'block';
 }
-
 function backToLogin() {
   document.getElementById('step3-forgot').style.display = 'none';
   document.getElementById('step2-login').style.display = 'block';
@@ -129,7 +116,6 @@ function backToLogin() {
 async function sendOTP() {
   const userId = document.getElementById('userId').value.trim();
   document.getElementById('error-msg').textContent = '⏳ Đang gửi OTP...';
-
   try {
     const res = await fetch('/api/forgot-password', {
       method: 'POST',
@@ -137,7 +123,6 @@ async function sendOTP() {
       body: JSON.stringify({ userId })
     });
     const data = await res.json();
-
     if (data.success) {
       document.getElementById('error-msg').textContent = '✅ Đã gửi OTP! Kiểm tra Zalo.';
       document.getElementById('otp-section').style.display = 'block';
@@ -154,14 +139,9 @@ async function resetPassword() {
   const otp = document.getElementById('otpInput').value.trim();
   const newPassword = document.getElementById('resetPassword').value;
   const newPassword2 = document.getElementById('resetPassword2').value;
-
-  if (!otp || !newPassword || !newPassword2) {
-    document.getElementById('error-msg').textContent = '❌ Nhập đủ thông tin!';
-    return;
-  }
+  if (!otp || !newPassword || !newPassword2) { document.getElementById('error-msg').textContent = '❌ Nhập đủ thông tin!'; return; }
 
   document.getElementById('error-msg').textContent = '⏳ Đang đổi...';
-
   try {
     const res = await fetch('/api/reset-password', {
       method: 'POST',
@@ -169,7 +149,6 @@ async function resetPassword() {
       body: JSON.stringify({ userId, otp, newPassword, newPassword2 })
     });
     const data = await res.json();
-
     if (data.success) {
       document.getElementById('error-msg').textContent = '✅ Đổi mật khẩu thành công!';
       setTimeout(function() {
@@ -190,8 +169,17 @@ function showGameScreen() {
   document.getElementById('game-screen').style.display = 'block';
   document.getElementById('user-name').textContent = '👤 ' + currentUser.name;
   updateBalance(currentUser.balance);
+  if (currentUser.streak > 0) {
+    document.getElementById('streak-box').style.display = 'block';
+    document.getElementById('streak-count').textContent = currentUser.streak;
+    document.getElementById('best-streak').textContent = currentUser.bestStreak;
+  }
   resizeCanvas();
   startAnimationLoop();
+  loadQuests();
+  loadCrashHistory();
+  crashHistoryInterval = setInterval(loadCrashHistory, 3000);
+  startChatPolling();
 }
 
 function updateBalance(balance) {
@@ -201,6 +189,77 @@ function updateBalance(balance) {
 
 function formatMoney(amount) {
   return amount.toLocaleString('vi-VN') + ' VNĐ';
+}
+
+// ===== LOAD CRASH HISTORY =====
+async function loadCrashHistory() {
+  try {
+    const res = await fetch('/api/crashes');
+    const data = await res.json();
+    if (data.success) {
+      const box = document.getElementById('crash-history-list');
+      box.innerHTML = '';
+      const crashes = data.crashes.reverse();
+      for (let i = 0; i < crashes.length; i++) {
+        const c = crashes[i];
+        const item = document.createElement('div');
+        item.className = 'crash-item ' +
+          (c.multiplier < 2 ? 'crash-low' : c.multiplier < 5 ? 'crash-mid' : 'crash-high');
+        item.textContent = c.multiplier.toFixed(2) + 'x';
+        box.appendChild(item);
+      }
+    }
+  } catch (err) {}
+}
+
+// ===== LOAD QUESTS =====
+async function loadQuests() {
+  try {
+    const res = await fetch('/api/quests', { headers: { 'Authorization': currentToken } });
+    const data = await res.json();
+    if (data.success) {
+      const box = document.getElementById('quests-list');
+      box.innerHTML = '';
+      for (let i = 0; i < data.quests.length; i++) {
+        const q = data.quests[i];
+        const percent = Math.min(100, (data.dailyBetToday / q.betRequired) * 100);
+        const item = document.createElement('div');
+        item.className = 'quest-item';
+        item.innerHTML =
+          '<div class="quest-info">' +
+            '<div class="quest-name">🎯 ' + q.name + ' → +' + q.reward.toLocaleString('vi-VN') + ' VNĐ</div>' +
+            '<div class="quest-progress">' + data.dailyBetToday.toLocaleString('vi-VN') + ' / ' + q.betRequired.toLocaleString('vi-VN') + ' VNĐ</div>' +
+            '<div class="quest-progress-bar"><div class="quest-progress-fill" style="width:' + percent + '%"></div></div>' +
+          '</div>' +
+          '<button class="quest-btn' + (q.claimed ? ' claimed' : '') + '" ' +
+            (q.claimed ? 'disabled' : (q.completed ? '' : 'disabled')) +
+            ' onclick="claimQuest(' + q.id + ')">' +
+            (q.claimed ? '✅ Đã nhận' : (q.completed ? '🎁 NHẬN' : '⏳ Chưa đủ')) +
+          '</button>';
+        box.appendChild(item);
+      }
+    }
+  } catch (err) {}
+}
+
+async function claimQuest(questId) {
+  try {
+    const res = await fetch('/api/quests/claim', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': currentToken },
+      body: JSON.stringify({ questId })
+    });
+    const data = await res.json();
+    if (data.success) {
+      alert('🎉 ' + data.message + '\n💰 +' + data.reward.toLocaleString('vi-VN') + ' VNĐ');
+      updateBalance(data.balance);
+      loadQuests();
+    } else {
+      alert('❌ ' + data.message);
+    }
+  } catch (err) {
+    alert('❌ Lỗi!');
+  }
 }
 
 // ===== BẮT ĐẦU GAME =====
@@ -221,7 +280,7 @@ async function startGame() {
       currentGameId = data.gameId;
       currentMultiplier = 1.00;
       cashoutMultiplier = null;
-      plane = { x: 50, y: 250, trail: [] };
+      plane = { x: 50, y: 250, trail: [], angle: 0 };
       particles = [];
       updateBalance(data.balance);
 
@@ -233,6 +292,7 @@ async function startGame() {
       document.getElementById('cashout-btn').disabled = false;
       document.getElementById('bet-amount').disabled = true;
 
+      loadQuests();
       startFlying();
     } else {
       alert('❌ ' + data.message);
@@ -257,7 +317,10 @@ function startFlying() {
         else if (currentMultiplier < 10) display.style.color = '#ff6600';
         else display.style.color = '#cc00ff';
 
-        if (data.crashed) crash();
+        if (data.crashed) {
+          crash();
+          loadCrashHistory();
+        }
       }
     } catch (err) {}
   }, 100);
@@ -307,6 +370,12 @@ async function cashout() {
       updateBalance(data.balance);
       createFireworks(plane.x, plane.y);
 
+      if (data.streak) {
+        document.getElementById('streak-box').style.display = 'block';
+        document.getElementById('streak-count').textContent = data.streak;
+        document.getElementById('best-streak').textContent = data.bestStreak;
+      }
+
       document.getElementById('status-display').innerHTML =
         '✅ Đã lấy tiền ở ' + cashoutMultiplier.toFixed(2) + 'x<br>' +
         '💰 Nhận: ' + formatMoney(data.winAmount) + '<br>' +
@@ -332,8 +401,9 @@ function resetGameUI() {
   currentGameId = null;
   currentMultiplier = 1.00;
   cashoutMultiplier = null;
-  plane = { x: 50, y: 250, trail: [] };
+  plane = { x: 50, y: 250, trail: [], angle: 0 };
   particles = [];
+  loadQuests();
 }
 
 function resizeCanvas() {
@@ -374,15 +444,15 @@ function drawGame() {
   }
 
   if (currentGameId && !document.getElementById('cashout-btn').disabled) {
-    plane.trail.push({ x: plane.x, y: plane.y, alpha: 1.0 });
+    plane.trail.push({ x: plane.x, y: plane.y });
     if (plane.trail.length > 40) plane.trail.shift();
 
     for (let i = 0; i < plane.trail.length; i++) {
       const t = plane.trail[i];
       const alpha = i / plane.trail.length;
-      ctx.fillStyle = 'rgba(255, 0, 102, ' + (alpha * 0.5) + ')';
+      ctx.fillStyle = 'rgba(255, 100, 150, ' + (alpha * 0.4) + ')';
       ctx.beginPath();
-      ctx.arc(t.x, t.y, 3 + alpha * 2, 0, Math.PI * 2);
+      ctx.arc(t.x, t.y, 5 + alpha * 3, 0, Math.PI * 2);
       ctx.fill();
     }
 
@@ -393,11 +463,15 @@ function drawGame() {
     ctx.quadraticCurveTo(plane.x / 2, plane.y, plane.x, plane.y);
     ctx.stroke();
 
+    const newAngle = Math.atan2(-0.8, 1.5);
+    plane.angle = newAngle;
+
     if (planeImg.complete && planeImg.naturalWidth > 0) {
       ctx.save();
       ctx.translate(plane.x, plane.y);
       const shake = Math.sin(Date.now() / 50) * 2;
       ctx.translate(shake, 0);
+      ctx.rotate(plane.angle);
       ctx.drawImage(planeImg, -30, -30, 60, 60);
       ctx.restore();
     } else {
@@ -419,7 +493,7 @@ function drawGame() {
 function createFireworks(x, y) {
   for (let i = 0; i < 50; i++) {
     particles.push({
-      x, y,
+      x: x, y: y,
       vx: (Math.random() - 0.5) * 10,
       vy: (Math.random() - 0.5) * 10,
       life: 1.0,
@@ -431,7 +505,7 @@ function createFireworks(x, y) {
 function createExplosion(x, y) {
   for (let i = 0; i < 80; i++) {
     particles.push({
-      x, y,
+      x: x, y: y,
       vx: (Math.random() - 0.5) * 15,
       vy: (Math.random() - 0.5) * 15,
       life: 1.0,
@@ -451,7 +525,6 @@ function updateParticles() {
     p.y += p.vy;
     p.vy += 0.2;
     p.life -= 0.02;
-
     if (p.life <= 0) { particles.splice(i, 1); continue; }
 
     ctx.globalAlpha = p.life;
@@ -476,36 +549,44 @@ async function loadUser() {
   try {
     const res = await fetch('/api/user-me', { headers: { 'Authorization': currentToken } });
     const data = await res.json();
-    if (data.success) updateBalance(data.user.balance);
+    if (data.success) {
+      updateBalance(data.user.balance);
+      if (data.user.streak > 0) {
+        document.getElementById('streak-box').style.display = 'block';
+        document.getElementById('streak-count').textContent = data.user.streak;
+        document.getElementById('best-streak').textContent = data.user.bestStreak;
+      }
+    }
   } catch (err) {}
 }
 
-function logout() {
-  localStorage.removeItem('aviator_token');
-  currentToken = null;
-  currentUser = null;
-  if (animationFrame) cancelAnimationFrame(animationFrame);
-  document.getElementById('login-screen').style.display = 'block';
-  document.getElementById('game-screen').style.display = 'none';
-  document.getElementById('step1').style.display = 'block';
-  document.getElementById('step2-login').style.display = 'none';
-  document.getElementById('step2-create').style.display = 'none';
-  document.getElementById('step3-forgot').style.display = 'none';
+// ===== CHAT =====
+async function sendChat() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text) return;
+
+  try {
+    const res = await fetch('/api/chat/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': currentToken },
+      body: JSON.stringify({ text: text })
+    });
+    const data = await res.json();
+    if (data.success) {
+      input.value = '';
+      loadChat();
+    } else {
+      alert('❌ ' + data.message);
+    }
+  } catch (err) {}
 }
 
-window.addEventListener('load', async function() {
-  const savedToken = localStorage.getItem('aviator_token');
-  if (savedToken) {
-    currentToken = savedToken;
-    try {
-      const res = await fetch('/api/user-me', { headers: { 'Authorization': currentToken } });
-      const data = await res.json();
-      if (data.success) {
-        currentUser = data.user;
-        showGameScreen();
-      } else {
-        localStorage.removeItem('aviator_token');
-      }
-    } catch (err) {}
-  }
-});
+async function loadChat() {
+  try {
+    const res = await fetch('/api/chat/messages?since=' + lastChatTime);
+    const data = await res.json();
+    if (data.success && data.messages.length > 0) {
+      const box = document.getElementById('chat-messages');
+      for (let i = 0; i < data.messages.length; i++) {
+       
