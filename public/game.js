@@ -1,19 +1,9 @@
+// ==========================================
+// PHẦN 1: ĐĂNG NHẬP
+// ==========================================
+
 let currentToken = null;
 let currentUser = null;
-let currentGameId = null;
-let currentMultiplier = 1.00;
-let cashoutMultiplier = null;
-let checkInterval = null;
-let crashHistoryInterval = null;
-let chatInterval = null;
-let plane = { x: 50, y: 250, trail: [], angle: 0 };
-let particles = [];
-let animationFrame = null;
-let lastChatTime = 0;
-
-const planeImg = new Image();
-planeImg.crossOrigin = 'anonymous';
-planeImg.src = 'https://i.ibb.co/jZ8Ch8TD/Picsart-26-10-01-04-36-48-089.png';
 
 // ===== CHECK USER =====
 async function checkUser() {
@@ -108,6 +98,7 @@ function showForgot() {
   document.getElementById('step2-login').style.display = 'none';
   document.getElementById('step3-forgot').style.display = 'block';
 }
+
 function backToLogin() {
   document.getElementById('step3-forgot').style.display = 'none';
   document.getElementById('step2-login').style.display = 'block';
@@ -162,6 +153,42 @@ async function resetPassword() {
     document.getElementById('error-msg').textContent = '❌ Lỗi kết nối!';
   }
 }
+
+// ===== AUTO LOGIN =====
+window.addEventListener('load', async function() {
+  const savedToken = localStorage.getItem('aviator_token');
+  if (savedToken) {
+    currentToken = savedToken;
+    try {
+      const res = await fetch('/api/user-me', { headers: { 'Authorization': currentToken } });
+      const data = await res.json();
+      if (data.success) {
+        currentUser = data.user;
+        showGameScreen();
+      } else {
+        localStorage.removeItem('aviator_token');
+      }
+    } catch (err) {}
+  }
+});
+// ==========================================
+// PHẦN 2: GAME AVIATOR
+// ==========================================
+
+let currentGameId = null;
+let currentMultiplier = 1.00;
+let cashoutMultiplier = null;
+let checkInterval = null;
+let crashHistoryInterval = null;
+let chatInterval = null;
+let lastChatTime = 0;
+let plane = { x: 50, y: 250, trail: [], angle: 0 };
+let particles = [];
+let animationFrame = null;
+
+const planeImg = new Image();
+planeImg.crossOrigin = 'anonymous';
+planeImg.src = 'https://i.ibb.co/jZ8Ch8TD/Picsart-26-10-01-04-36-48-089.png';
 
 // ===== HIỂN THỊ GAME =====
 function showGameScreen() {
@@ -406,6 +433,7 @@ function resetGameUI() {
   loadQuests();
 }
 
+// ===== CANVAS / ANIMATION =====
 function resizeCanvas() {
   const canvas = document.getElementById('game-canvas');
   if (!canvas) return;
@@ -589,4 +617,60 @@ async function loadChat() {
     if (data.success && data.messages.length > 0) {
       const box = document.getElementById('chat-messages');
       for (let i = 0; i < data.messages.length; i++) {
-       
+        const m = data.messages[i];
+        const div = document.createElement('div');
+        div.className = 'chat-message' + (m.userName === currentUser.name ? ' own' : '');
+        
+        const time = new Date(m.createdAt).toLocaleTimeString('vi-VN', {
+          hour: '2-digit', minute: '2-digit'
+        });
+        
+        div.innerHTML =
+          '<span class="chat-name">' + escapeHtml(m.userName) + ':</span>' +
+          escapeHtml(m.text) +
+          '<span class="chat-time">' + time + '</span>';
+        
+        box.appendChild(div);
+        lastChatTime = m.createdAt;
+      }
+      box.scrollTop = box.scrollHeight;
+      while (box.children.length > 50) box.removeChild(box.firstChild);
+    }
+  } catch (err) {}
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+function startChatPolling() {
+  if (chatInterval) clearInterval(chatInterval);
+  chatInterval = setInterval(loadChat, 2000);
+  loadChat();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  const chatInput = document.getElementById('chat-input');
+  if (chatInput) {
+    chatInput.addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') sendChat();
+    });
+  }
+});
+
+function logout() {
+  localStorage.removeItem('aviator_token');
+  currentToken = null;
+  currentUser = null;
+  if (animationFrame) cancelAnimationFrame(animationFrame);
+  if (crashHistoryInterval) clearInterval(crashHistoryInterval);
+  if (chatInterval) clearInterval(chatInterval);
+  document.getElementById('login-screen').style.display = 'block';
+  document.getElementById('game-screen').style.display = 'none';
+  document.getElementById('step1').style.display = 'block';
+  document.getElementById('step2-login').style.display = 'none';
+  document.getElementById('step2-create').style.display = 'none';
+  document.getElementById('step3-forgot').style.display = 'none';
+      }
