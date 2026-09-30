@@ -12,7 +12,6 @@
   <h1>🛫 AVIATOR</h1>
   <p class="subtitle">Game cá cược máy bay</p>
 
-  <!-- BƯỚC 1: NHẬP ID -->
   <div id="step1">
     <div class="form-group">
       <label>ID Zalo của bạn:</label>
@@ -22,65 +21,49 @@
     <button onclick="checkUser()">➡️ TIẾP TỤC</button>
   </div>
 
-  <!-- BƯỚC 2A: TẠO MẬT KHẨU (lần đầu) -->
   <div id="step2-create" style="display:none">
     <p style="text-align:center; color:#ff0066; margin-bottom:15px;">
-      🎉 Chào mừng <span id="welcome-name"></span>!<br>
-      Bạn là người mới, hãy tạo mật khẩu.
+      🎉 Chào mừng <span id="welcome-name"></span>!<br>Bạn là người mới, hãy tạo mật khẩu.
     </p>
-
     <div class="form-group">
       <label>Mật khẩu mới:</label>
       <input type="password" id="newPassword" placeholder="Có chữ HOA + số">
       <small>⚠️ Ít nhất 6 ký tự, có 1 chữ IN HOA và 1 chữ số</small>
     </div>
-
     <div class="form-group">
       <label>Nhập lại mật khẩu:</label>
       <input type="password" id="newPassword2" placeholder="Nhập lại">
     </div>
-
     <button onclick="createPassword()">✅ TẠO MẬT KHẨU</button>
   </div>
 
-  <!-- BƯỚC 2B: ĐĂNG NHẬP (đã có mật khẩu) -->
   <div id="step2-login" style="display:none">
     <div class="form-group">
       <label>Mật khẩu:</label>
       <input type="password" id="password" placeholder="Nhập mật khẩu">
     </div>
-
     <button onclick="login()">🔓 ĐĂNG NHẬP</button>
     <button class="btn-secondary" onclick="showForgot()">❓ Quên mật khẩu?</button>
   </div>
 
-  <!-- BƯỚC 3: QUÊN MẬT KHẨU -->
   <div id="step3-forgot" style="display:none">
-    <p style="text-align:center; color:#ffcc00; margin-bottom:15px;">
-      🔐 Đổi mật khẩu mới
-    </p>
-
+    <p style="text-align:center; color:#ffcc00; margin-bottom:15px;">🔐 Đổi mật khẩu mới</p>
     <button onclick="sendOTP()">📤 GỬI OTP QUA ZALO</button>
-
     <div id="otp-section" style="display:none">
       <div class="form-group">
         <label>Mã OTP:</label>
         <input type="text" id="otpInput" placeholder="6 chữ số" maxlength="6">
       </div>
-
       <div class="form-group">
         <label>Mật khẩu mới:</label>
         <input type="password" id="resetPassword" placeholder="Có chữ HOA + số">
       </div>
-
       <div class="form-group">
         <label>Nhập lại mật khẩu mới:</label>
         <input type="password" id="resetPassword2" placeholder="Nhập lại">
       </div>
-
       <button onclick="resetPassword()">✅ ĐỔI MẬT KHẨU</button>
     </div>
-
     <button class="btn-secondary" onclick="backToLogin()">⬅️ Quay lại</button>
   </div>
 
@@ -96,10 +79,19 @@
     <div id="user-balance">0 VNĐ</div>
   </div>
 
+  <div id="crash-history">
+    <div id="crash-history-list"></div>
+  </div>
+
   <div id="game-area">
     <canvas id="game-canvas"></canvas>
     <div id="multiplier-display">1.00x</div>
     <div id="status-display"></div>
+  </div>
+
+  <div id="streak-box" style="display:none">
+    🔥 Streak: <span id="streak-count">0</span> | 
+    🏆 Best: <span id="best-streak">0</span>
   </div>
 
   <div class="controls">
@@ -108,9 +100,23 @@
     <button id="cashout-btn" class="btn-cashout" onclick="cashout()" style="display:none">💰 LẤY TIỀN</button>
   </div>
 
+  <div id="quests-box">
+    <h3>🎯 NHIỆM VỤ HÀNG NGÀY</h3>
+    <div id="quests-list"></div>
+  </div>
+
   <div id="history-box">
     <h3>📜 Lịch sử gần đây</h3>
     <div id="history-list"></div>
+  </div>
+
+  <div id="chat-box">
+    <h3>💬 Chat</h3>
+    <div id="chat-messages"></div>
+    <div id="chat-input-box">
+      <input type="text" id="chat-input" placeholder="Nhập tin nhắn..." maxlength="200">
+      <button onclick="sendChat()">📤</button>
+    </div>
   </div>
 </div>
 
